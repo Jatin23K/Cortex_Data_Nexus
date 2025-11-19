@@ -1,0 +1,7 @@
+{
+  "name": "Cortex Data Nexus",
+  "description": "A comprehensive AI interface tailored for the entire Data Science and ML lifecycle, from Data Engineering to Agentic Workflow Architecture.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
