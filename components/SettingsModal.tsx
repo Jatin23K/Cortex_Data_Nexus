@@ -71,6 +71,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleSaveEdit = () => {
     if (editForm && editingKey) {
       onUpdatePersona(editingKey, editForm);
+      // Clear state after update to return to view mode with new data
       setEditingKey(null);
       setEditForm(null);
     }
@@ -384,6 +385,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
                              <div className="flex items-center justify-between pt-2">
                                 <button 
+                                  type="button"
                                   onClick={() => onResetPersona(persona.key)}
                                   className="flex items-center gap-2 px-3 py-2 rounded text-xs font-medium text-cortex-500 hover:text-white hover:bg-cortex-700 transition-colors"
                                   title="Reset to System Default"
@@ -392,12 +394,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                 </button>
                                 <div className="flex gap-2">
                                   <button 
+                                    type="button"
                                     onClick={handleCancelEdit}
                                     className="px-4 py-2 rounded bg-cortex-700 hover:bg-cortex-600 text-white text-xs font-bold transition-colors"
                                   >
                                     Cancel
                                   </button>
                                   <button 
+                                    type="button"
                                     onClick={handleSaveEdit}
                                     className="px-4 py-2 rounded bg-green-600 hover:bg-green-500 text-white text-xs font-bold flex items-center gap-2 shadow-lg transition-colors"
                                   >
@@ -430,6 +434,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                                   {persona.modelPreference === 'reasoning' ? 'High IQ' : persona.modelPreference === 'custom' ? 'Tuned' : 'Fast'}
                                 </div>
                                 <button 
+                                  type="button"
                                   onClick={() => handleStartEdit(persona)}
                                   className="p-1.5 hover:bg-cortex-700 rounded text-gray-400 hover:text-white transition-colors"
                                   title="Edit Role Spec"

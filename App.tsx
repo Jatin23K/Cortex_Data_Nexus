@@ -35,14 +35,14 @@ YOUR PROCESS:
    - **@Data Engineer**: Pipelines, Spark, cleaning data. (Uses Gemini 2.5 Flash - Fast/Cheap)
    - **@Analytics Engineer**: dbt, SQL modeling, data warehousing. (Uses Gemini 2.5 Flash)
    - **@Data Scientist**: Machine Learning, math, statistics. (Uses Gemini 3 Pro)
-   - **@Data Analyst**: Visualization, BI dashboards, business insights. (Uses Gemini 2.5 Flash)
    - **@Agentic Architect**: Building AI agents, LangGraph. (Uses Gemini 3 Pro)
    - **@LLM Engineer**: RAG, fine-tuning, GenAI apps. (Uses Gemini 3 Pro)
+   - **@MLOps Engineer**: Deployment, Kubernetes, Scale. (Uses Gemini 2.5 Flash)
 
 4. **Budget Estimation (NEW)**:
    Provide a rough API cost estimate for the project based on these rates:
-   - **Flash Agents** (Engineer, Analyst, PM): ~$0.075 / 1M input tokens (Extremely Cheap).
-   - **Pro Agents** (Architect, Scientist): ~$1.25 / 1M input tokens (Premium).
+   - **Flash Agents** (Engineer, Analytics Engineer, MLOps): ~$0.075 / 1M input tokens (Extremely Cheap).
+   - **Pro Agents** (Architect, Scientist, LLM Engineer): ~$1.25 / 1M input tokens (Premium).
    
    *Rough Guidelines:*
    - **Small Project** (Prototype, <50 messages): **< $0.01**
@@ -73,29 +73,13 @@ YOUR PROCESS:
 **Title:** Inference & Stats
 **Description:** Scikit-learn, XGBoost, Causal Inference, and A/B Testing.
 
-## Data Analyst
-**Title:** Business Insights
-**Description:** Visualization, Business Logic, Excel, and SQL.
-
-## AI Researcher
-**Title:** Deep Learning Theory
-**Description:** ArXiv papers, Model Architecture, and Math.
-
 ## LLM Engineer
 **Title:** Applied GenAI
 **Description:** RAG, Fine-tuning (LoRA), Context Windows, and Evals.
 
-## Prompt Engineer
-**Title:** Prompt Optimization
-**Description:** Chain-of-Thought, DSPy, Few-Shot, and System Prompts.
-
 ## MLOps Engineer
 **Title:** Deployment & Scale
 **Description:** Kubernetes, MLflow, Model Registry, and Monitoring.
-
-## Data PM
-**Title:** Strategy & ROI
-**Description:** KPIs, Stakeholders, Agile, and Product Vision.
 `;
 
 function App() {
@@ -242,7 +226,11 @@ function App() {
   const handleUpdatePersona = (key: PersonaKey, updatedPersona: Persona) => {
     setPersonas(prev => {
       const next = { ...prev, [key]: updatedPersona };
-      localStorage.setItem('cortex_personas', JSON.stringify(next));
+      try {
+        localStorage.setItem('cortex_personas', JSON.stringify(next));
+      } catch (e) {
+        console.error("Failed to save personas to local storage", e);
+      }
       return next;
     });
   };

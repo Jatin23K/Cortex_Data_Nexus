@@ -37,12 +37,8 @@ export enum PersonaKey {
   ENGINEER = 'ENGINEER',         // Data Engineer
   ANALYTICS_ENG = 'ANALYTICS_ENG', // Analytics Engineer
   SCIENTIST = 'SCIENTIST',       // Data Scientist
-  ANALYST = 'ANALYST',           // Data Analyst
-  RESEARCHER = 'RESEARCHER',     // AI Researcher
   LLM_ENGINEER = 'LLM_ENGINEER', // LLM Engineer
-  PROMPT = 'PROMPT',             // Prompt Engineer
   OPS = 'OPS',                   // MLOps
-  PRODUCT = 'PRODUCT'            // Data PM
 }
 
 export interface Persona {
