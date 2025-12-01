@@ -7,86 +7,35 @@ import ChatMessage from './components/ChatMessage';
 import SettingsModal from './components/SettingsModal';
 import { Send, StopCircle, Mic, X, Loader2, Plus, FileText, Globe, Brain, GraduationCap, Search, Image as ImageIcon, Settings, Cpu, Menu, Monitor, MonitorX, GripVertical } from 'lucide-react';
 
-// Default Role Specs Content from User
-const ROLE_SPECIALISATION_MD = `# Cortex Data Nexus - Role Specifications
+// Helper: Generate Markdown from Personas for Orchestrator Context
+const generateRoleSpecsMarkdown = (personas: Record<PersonaKey, Persona>) => {
+  return `# Cortex Data Nexus - Role Specifications
 
-## Cortex Orchestrator
-**Title:** Technical Project Manager
-**Description:** Scopes projects, creates roadmaps, and assigns tasks to specialized Agents.
+> **Auto-Generated**: This context is dynamically synced with your Role Settings.
+
+${(Object.values(personas) as Persona[]).map(p => `## ${p.name}
+**Title:** ${p.title}
+**Description:** ${p.description}
 **System Instruction:**
-You are the Cortex Orchestrator, a Senior Technical Product Manager and Solutions Architect.
-
-YOUR GOAL:
-Do NOT just answer the user's question immediately. Your job is to ensure the project is successful by planning it correctly.
-You are the interface between the User and the specialized Cortex Workforce (Architect, Engineer, Scientist, etc.).
-
-YOUR PROCESS:
-1. **Discovery**: If the user's request is vague (e.g., "Build a churn model"), ask 3-4 clarifying questions about:
-   - Data Volume & Frequency (Big Data vs. Excel)
-   - Tech Stack Constraints (AWS vs. GCP, Python vs. SQL)
-   - Business Goal (Dashboarding vs. Real-time API)
-
-2. **The Blueprint**: Once the context is clear, generate a Step-by-Step Master Plan.
-
-3. **Delegation (CRITICAL)**: For EVERY step in your plan, you MUST explicitly recommend which Cortex Role is best suited to execute it.
-   
-   Refer to these roles:
-   - **@System Architect**: Cloud infra, databases, security. (Uses Gemini 3 Pro - High IQ)
-   - **@Data Engineer**: Pipelines, Spark, cleaning data. (Uses Gemini 2.5 Flash - Fast/Cheap)
-   - **@Analytics Engineer**: dbt, SQL modeling, data warehousing. (Uses Gemini 2.5 Flash)
-   - **@Data Scientist**: Machine Learning, math, statistics. (Uses Gemini 3 Pro)
-   - **@Agentic Architect**: Building AI agents, LangGraph. (Uses Gemini 3 Pro)
-   - **@LLM Engineer**: RAG, fine-tuning, GenAI apps. (Uses Gemini 3 Pro)
-   - **@MLOps Engineer**: Deployment, Kubernetes, Scale. (Uses Gemini 2.5 Flash)
-
-4. **Budget Estimation (NEW)**:
-   Provide a rough API cost estimate for the project based on these rates:
-   - **Flash Agents** (Engineer, Analytics Engineer, MLOps): ~$0.075 / 1M input tokens (Extremely Cheap).
-   - **Pro Agents** (Architect, Scientist, LLM Engineer): ~$1.25 / 1M input tokens (Premium).
-   
-   *Rough Guidelines:*
-   - **Small Project** (Prototype, <50 messages): **< $0.01**
-   - **Medium Project** (MVP, Heavy context): **$0.10 - $0.50**
-   - **Large Project** (Enterprise, Millions of tokens): **$5.00+**
-
-## Neural Library (SLM)
-**Title:** Efficient Tuned Model
-**Description:** Cost-effective expert mode. Tune 'Gemini Flash' on your data for high speed and low cost.
-
-## System Architect
-**Title:** Platform & Infrastructure
-**Description:** Cloud design, Data Mesh, Warehousing, and Scalability.
-
-## Agentic Architect
-**Title:** Multi-Agent Systems
-**Description:** LangGraph, AutoGen, CrewAI, and Orchestration patterns.
-
-## Data Engineer
-**Title:** Pipelines & Ingestion
-**Description:** Spark, Airflow, Kafka, and raw data processing.
-
-## Analytics Engineer
-**Title:** Modeling & dbt
-**Description:** dbt, Data Modeling (Kimball), SQL, and Data Quality.
-
-## Data Scientist
-**Title:** Inference & Stats
-**Description:** Scikit-learn, XGBoost, Causal Inference, and A/B Testing.
-
-## LLM Engineer
-**Title:** Applied GenAI
-**Description:** RAG, Fine-tuning (LoRA), Context Windows, and Evals.
-
-## MLOps Engineer
-**Title:** Deployment & Scale
-**Description:** Kubernetes, MLflow, Model Registry, and Monitoring.
+\`\`\`text
+${p.systemInstruction}
+\`\`\`
+`).join('\n')}
 `;
+};
 
 function App() {
+  // Initialize with defaults, but we will hydrate from LS immediately in useEffect
   const [personas, setPersonas] = useState<Record<PersonaKey, Persona>>(PERSONAS);
   const [currentPersonaKey, setCurrentPersonaKey] = useState<PersonaKey>(PersonaKey.ORCHESTRATOR);
-  const [customModelId, setCustomModelId] = useState(''); 
-  const [temperature, setTemperature] = useState(0.5);
+  
+  // Persist Custom Model ID and Temperature
+  const [customModelId, setCustomModelId] = useState(() => localStorage.getItem('cortex_custom_model_id') || '');
+  const [temperature, setTemperature] = useState(() => {
+    const saved = localStorage.getItem('cortex_temperature');
+    return saved ? parseFloat(saved) : 0.5;
+  });
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -163,16 +112,6 @@ function App() {
       } catch (e) {
         console.error("Failed to load Project Files", e);
       }
-    } else {
-      // Initialize with Default Role Specs if empty in Project Files (context for Orchestrator)
-      const defaultSpec: KnowledgeDocument = {
-        id: 'default-role-specs',
-        name: 'role_specialisation.md',
-        type: 'text/markdown',
-        content: ROLE_SPECIALISATION_MD,
-        timestamp: Date.now()
-      };
-      setProjectFiles([defaultSpec]);
     }
 
     if (savedGlobalKB) {
@@ -186,24 +125,71 @@ function App() {
     if (savedPersonas) {
       try {
         const parsed = JSON.parse(savedPersonas);
-        // Merge with defaults to ensure icons (React components) are preserved
-        const merged = { ...PERSONAS };
-        Object.keys(parsed).forEach((k) => {
-            const key = k as PersonaKey;
-            if (merged[key]) {
-                merged[key] = {
-                    ...merged[key],
-                    ...parsed[key],
-                    icon: merged[key].icon // Preserve the icon component from constant
+        
+        // Robust Hydration Strategy:
+        // 1. Iterate over the System Defaults (PERSONAS) to ensure structure.
+        // 2. If a key exists in 'parsed' (Local Storage), merge it ON TOP of default.
+        // 3. Explicitly re-attach the Icon component (which cannot be stored in JSON).
+        
+        const hydrated: Record<string, Persona> = {};
+        
+        (Object.keys(PERSONAS) as PersonaKey[]).forEach((key) => {
+            const defaultPersona = PERSONAS[key];
+            const savedPersona = parsed[key];
+
+            if (savedPersona) {
+                // User has customized this role
+                hydrated[key] = {
+                    ...defaultPersona, // Base structure
+                    ...savedPersona,   // User overrides (Name, Prompt, Title, etc.)
+                    icon: defaultPersona.icon // Restore React Icon Component
                 };
+            } else {
+                // Use default
+                hydrated[key] = defaultPersona;
             }
         });
-        setPersonas(merged);
+
+        setPersonas(hydrated as Record<PersonaKey, Persona>);
       } catch (e) {
-        console.error("Failed to load Personas", e);
+        console.error("Failed to load Personas from LS", e);
+        // Fallback is already set via useState(PERSONAS)
       }
     }
   }, []);
+
+  // Persist Custom Model ID and Temperature changes
+  useEffect(() => {
+    localStorage.setItem('cortex_custom_model_id', customModelId);
+  }, [customModelId]);
+
+  useEffect(() => {
+    localStorage.setItem('cortex_temperature', temperature.toString());
+  }, [temperature]);
+
+  // Sync Role Specs to Project Files (for Orchestrator Context) whenever Personas change
+  useEffect(() => {
+    const dynamicContent = generateRoleSpecsMarkdown(personas);
+    
+    setProjectFiles(prev => {
+      const SPEC_ID = 'default-role-specs';
+      // Check if it already exists and is identical to avoid loops
+      const existing = prev.find(p => p.id === SPEC_ID);
+      if (existing && existing.content === dynamicContent) return prev;
+
+      const newSpec: KnowledgeDocument = {
+        id: SPEC_ID,
+        name: 'role_specialisation.md',
+        type: 'text/markdown',
+        content: dynamicContent,
+        timestamp: Date.now()
+      };
+
+      // Replace or Add
+      const others = prev.filter(p => p.id !== SPEC_ID);
+      return [newSpec, ...others];
+    });
+  }, [personas]);
 
   // Save messages to Local Storage whenever they change
   useEffect(() => {
@@ -212,9 +198,11 @@ function App() {
     }
   }, [messages]);
 
-  // Save Project Files to Local Storage (Legacy key to keep it simple for now or cortex_project_files)
+  // Save Project Files to Local Storage
   useEffect(() => {
-    localStorage.setItem('cortex_kb', JSON.stringify(projectFiles));
+    if (projectFiles.length > 0) {
+      localStorage.setItem('cortex_kb', JSON.stringify(projectFiles));
+    }
   }, [projectFiles]);
 
   // Save Global KB to Local Storage
@@ -226,8 +214,15 @@ function App() {
   const handleUpdatePersona = (key: PersonaKey, updatedPersona: Persona) => {
     setPersonas(prev => {
       const next = { ...prev, [key]: updatedPersona };
+      // Persist immediately to Local Storage
       try {
-        localStorage.setItem('cortex_personas', JSON.stringify(next));
+        const storageVersion: Record<string, any> = {};
+        Object.entries(next).forEach(([k, v]) => {
+            // Strip the icon component before saving to avoid circular JSON issues or losing the reference
+            const { icon, ...rest } = v; 
+            storageVersion[k] = rest;
+        });
+        localStorage.setItem('cortex_personas', JSON.stringify(storageVersion));
       } catch (e) {
         console.error("Failed to save personas to local storage", e);
       }
@@ -237,8 +232,20 @@ function App() {
 
   const handleResetPersona = (key: PersonaKey) => {
     setPersonas(prev => {
+      // Restore strict default for this key
       const next = { ...prev, [key]: PERSONAS[key] };
-      localStorage.setItem('cortex_personas', JSON.stringify(next));
+      
+      try {
+         const storageVersion: Record<string, any> = {};
+         Object.entries(next).forEach(([k, v]) => {
+             const { icon, ...rest } = v;
+             storageVersion[k] = rest;
+         });
+         localStorage.setItem('cortex_personas', JSON.stringify(storageVersion));
+      } catch(e) {
+         console.error("Failed to reset persona storage", e);
+      }
+      
       return next;
     });
   };
@@ -968,7 +975,7 @@ function App() {
                                 <div className="px-4 py-2 mt-2 text-[10px] font-bold text-cortex-500 uppercase tracking-wider sticky top-0 bg-[#1e232b]/95 backdrop-blur-sm z-10">
                                   Specialized Roles
                                 </div>
-                                {Object.values(personas)
+                                {(Object.values(personas) as Persona[])
                                     .filter(p => p.key !== PersonaKey.ORCHESTRATOR && p.key !== PersonaKey.BIBLIOTHECA)
                                     .map(renderPersonaMenuItem)}
                               </div>

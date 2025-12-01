@@ -47,8 +47,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onResetPersona
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('knowledge');
-  const [apiProvider, setApiProvider] = useState('gemini');
-  const [apiKey, setApiKey] = useState('');
   const kbInputRef = useRef<HTMLInputElement>(null);
   const projectInputRef = useRef<HTMLInputElement>(null);
 
@@ -70,7 +68,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const handleSaveEdit = () => {
     if (editForm && editingKey) {
-      onUpdatePersona(editingKey, editForm);
+      // Ensure the key is preserved in the payload and passed back
+      const payload = { ...editForm, key: editingKey };
+      onUpdatePersona(editingKey, payload);
       // Clear state after update to return to view mode with new data
       setEditingKey(null);
       setEditForm(null);
@@ -214,60 +214,34 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
            {/* Tab: Connected API */}
            {activeTab === 'api' && (
              <div className="p-6 md:p-8 overflow-y-auto h-full">
-                <h3 className="text-2xl font-bold text-white mb-2">Connected APIs</h3>
-                <p className="text-cortex-500 text-sm mb-8">Configure the Large Language Models powering Cortex.</p>
+                <h3 className="text-2xl font-bold text-white mb-2">Connected Models</h3>
+                <p className="text-cortex-500 text-sm mb-8">Configure the specific language model behavior for Cortex.</p>
 
                 <div className="grid gap-6 max-w-2xl">
                    
-                   {/* Provider Selection */}
-                   <div className="space-y-2">
-                      <label className="text-sm font-semibold text-gray-300">AI Provider</label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {['gemini', 'openai', 'llama'].map(provider => (
-                          <button 
-                            key={provider}
-                            onClick={() => setApiProvider(provider)}
-                            className={`py-3 px-4 rounded-lg border capitalize font-medium transition-all ${
-                              apiProvider === provider 
-                               ? 'bg-cortex-blue/10 border-cortex-blue text-cortex-blue' 
-                               : 'bg-cortex-800 border-cortex-700 text-gray-400 hover:bg-cortex-700'
-                            }`}
-                          >
-                            {provider}
-                          </button>
-                        ))}
+                   {/* API Key Status */}
+                   <div className="space-y-2 p-4 bg-cortex-800/50 rounded-lg border border-cortex-700/50">
+                      <div className="flex items-center justify-between">
+                         <span className="text-sm font-semibold text-gray-200">System API Key</span>
+                         <span className="text-xs font-mono bg-green-900/30 text-green-400 px-2 py-0.5 rounded border border-green-900/50 flex items-center gap-1">
+                           <CheckCircle2 size={12} /> Active
+                         </span>
                       </div>
-                   </div>
-
-                   {/* API Key Input */}
-                   <div className="space-y-2">
-                      <label className="text-sm font-semibold text-gray-300 flex items-center justify-between">
-                        <span>API Key</span>
-                        {apiProvider === 'gemini' && (
-                          <span className="text-xs font-normal text-cortex-accent flex items-center gap-1">
-                            <CheckCircle2 size={12} /> System ENV Detected
-                          </span>
-                        )}
-                      </label>
-                      <div className="relative">
-                        <input 
-                          type="password" 
-                          value={apiKey}
-                          onChange={(e) => setApiKey(e.target.value)}
-                          placeholder={apiProvider === 'gemini' ? 'Using process.env.API_KEY (Secure)' : 'sk-...'}
-                          className="w-full bg-cortex-900 border border-cortex-700 rounded-lg pl-10 pr-4 py-3 text-white focus:border-cortex-blue focus:ring-1 focus:ring-cortex-blue focus:outline-none placeholder-gray-600"
-                        />
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                          <Key size={16} />
-                        </div>
-                      </div>
+                      <p className="text-xs text-cortex-500">
+                        Your environment API key is loaded and secure. All requests are routed via Google Gemini.
+                      </p>
                    </div>
 
                    {/* Custom Model ID */}
                    <div className="space-y-2 pt-4 border-t border-cortex-800 mt-2">
-                      <label className="text-sm font-semibold text-gray-300 flex items-center gap-2">
-                        <Library size={16}/>
-                        Custom Tuned Model ID
+                      <label className="text-sm font-semibold text-gray-300 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                           <Library size={16}/>
+                           <span>Custom Tuned Model ID</span>
+                        </div>
+                        {customModelId && (
+                           <span className="text-xs text-cortex-blue font-medium animate-in fade-in">Saved locally</span>
+                        )}
                       </label>
                       <input 
                          type="text" 
@@ -276,8 +250,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                          placeholder="tunedModels/..."
                          className="w-full bg-black/30 border border-cortex-700 rounded-lg px-4 py-3 text-sm text-white placeholder-cortex-600 focus:border-cortex-blue focus:outline-none font-mono"
                        />
-                       <p className="text-xs text-cortex-500">
-                         Required only when using the <strong>Neural Library (SLM)</strong> persona.
+                       <p className="text-xs text-cortex-500 leading-relaxed">
+                         Use this field to attach a <strong>Fine-Tuned Gemini Model</strong> (SLM). 
+                         <br/>
+                         When the <strong>Neural Library (SLM)</strong> persona is active, Cortex will use this model ID instead of the generic Gemini Flash.
                        </p>
                    </div>
 
@@ -304,12 +280,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         Higher values make the model more creative but less deterministic.
                       </p>
                    </div>
-
-                   <div className="pt-6 border-t border-cortex-800">
-                      <button className="bg-cortex-blue hover:bg-cortex-accentHover text-white px-6 py-2.5 rounded-lg font-medium transition-colors w-full md:w-auto">
-                        Save Configuration
-                      </button>
-                   </div>
                 </div>
              </div>
            )}
@@ -322,7 +292,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 
                 <div className="flex-1 overflow-y-auto pr-2 pb-10">
                   <div className="grid grid-cols-1 gap-4">
-                    {Object.values(personas).map((persona) => (
+                    {(Object.values(personas) as Persona[]).map((persona) => (
                       <div 
                         key={persona.key} 
                         className={`rounded-xl border p-5 relative overflow-hidden transition-all ${editingKey === persona.key ? 'bg-cortex-800 border-cortex-600 ring-1 ring-cortex-500' : 'border-cortex-700/50 bg-[#161b22]/60'}`}
@@ -447,7 +417,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                             <div className="bg-black/30 rounded p-3 border border-cortex-700/50 group-hover:border-cortex-600 transition-colors">
                                <div className="text-[10px] font-bold text-cortex-500 uppercase mb-1 flex justify-between">
                                  <span>System Prompt Extract</span>
-                               </div>
+                                </div>
                                <p className="text-[11px] text-gray-500 font-mono line-clamp-3 leading-relaxed">
                                  {persona.systemInstruction
                                     .replace(/You are a .*?\./, '') 
